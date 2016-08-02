@@ -123,21 +123,64 @@ test_family_ids[testing_df["FamilySize"] < 3] = -1
 training_df["FamilyId"] = family_ids
 testing_df["FamilyId"] = test_family_ids
 
+
 # ASSIGN FEATURES   --------------------------------
 
 predictors1 = ["Pclass", "Sex", "Age", "SibSp", "Parch", "Fare", "Embarked",
                "FamilySize", "FamilyId", "Title"]
 
-selector = SelectKBest(f_classif, k=5)
-selector.fit(train[predictors], train["Survived"])
+# selector = SelectKBest(f_classif, k=5)
+# selector.fit(train[predictors], train["Survived"])
 
-scores = -np.log10(selector.pvalues_)
+# scores = -np.log10(selector.pvalues_)
 
 predictors2 = ["Pclass", "Embarked", "Sex", "Fare", "Title"]
 
- clf = RandomForestClassifier(random_state=1, n_estimators=150, min_samples_split = 8, min_samples_leaf=4)
+# clf = RandomForestClassifier(random_state=1, n_estimators=150, 
+#   min_samples_split = 8, min_samples_leaf=4)
 
-scores = cross_validation.cross_val_score(clf, train[predictors], train["Survived"], cv=3)
+#scores = cross_validation.cross_val_score(clf, train[predictors], 
+#       train["Survived"], cv=3)
 
-print "random forest accuracy = ", scores.mean()
+#print "random forest accuracy = ", scores.mean()
 
+# DataQuest Ensemble algorithm recommendation
+
+algorithms = [
+    [RandomForestClassifier(random_state=1, n_estimators=200, 
+  min_samples_split = 15, min_samples_leaf=8), predictors2],
+    [GradientBoostingClassifier(random_state=1, n_estimators=25,
+        max_depth=3), predictors2]
+]
+
+full_predictions = []
+for alg, predictors in algorithms:
+    # train the algorithm
+    alg.fit(training_df[predictors], training_df["Survived"])
+
+    # apply algorithm to test data
+    predictions = alg.predict_proba(testing_df[predictors].astype(float))[:,1]
+
+    # test accuracy on training data
+    #predictions = alg.predict_proba(training_df[predictors].astype(float))[:,1]
+
+    full_predictions.append(predictions)
+
+# the gradient boosting classifier generates better predictions, 
+#   so we weight it higher
+predictions = (full_predictions[0] * 3 + full_predictions[1]) / 4
+predictions[predictions <= 0.5] = 0
+predictions[predictions > 0.5] = 1
+predictions = predictions.astype(int)
+
+# accuracy = sum(predictions[predictions == training_df["Survived"]]) / len(predictions)
+# print accuracy
+
+#format for kaggle submission
+
+submission = pd.DataFrame({
+    "PassengerId": testing_df["PassengerId"],
+    "Survived": predictions
+    })
+
+submission.to_csv("kaggle-titanic-2016-07-18.csv", index=False)
