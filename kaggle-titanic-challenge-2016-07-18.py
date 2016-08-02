@@ -123,6 +123,21 @@ test_family_ids[testing_df["FamilySize"] < 3] = -1
 training_df["FamilyId"] = family_ids
 testing_df["FamilyId"] = test_family_ids
 
-# check values
-print testing_df
-print training_df
+# ASSIGN FEATURES   --------------------------------
+
+predictors1 = ["Pclass", "Sex", "Age", "SibSp", "Parch", "Fare", "Embarked",
+               "FamilySize", "FamilyId", "Title"]
+
+selector = SelectKBest(f_classif, k=5)
+selector.fit(train[predictors], train["Survived"])
+
+scores = -np.log10(selector.pvalues_)
+
+predictors2 = ["Pclass", "Embarked", "Sex", "Fare", "Title"]
+
+ clf = RandomForestClassifier(random_state=1, n_estimators=150, min_samples_split = 8, min_samples_leaf=4)
+
+scores = cross_validation.cross_val_score(clf, train[predictors], train["Survived"], cv=3)
+
+print "random forest accuracy = ", scores.mean()
+
